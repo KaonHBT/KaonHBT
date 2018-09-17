@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<job  softLimits="true" minEvents="75000" maxEvents="100000" eventsPerHour="20000" fileListSyntax="xrootd">
+
+	<command>
+		<!-- AuAu 200 GeV Run11 -->
+		starver SL14a
+		cons
+		root4star -q -b macros/makeBES39.C\(\"$FILELIST\",\"AuAu39GeV_KaonDST_${JOBID}\",9,250000,2,0,15\)++  &gt;&amp; AuAu39GeV_KaonDST_${JOBID}.log
+		mv AuAu39GeV_KaonDST_${JOBID}_Cent0.root /gpfs/mnt/gpfs01/star/pwg/jlidrych/data/BES/39/
+		mv AuAu39GeV_KaonDST_${JOBID}_Cent1.root /gpfs/mnt/gpfs01/star/pwg/jlidrych/data/BES/39/
+		mv AuAu39GeV_KaonDST_${JOBID}_Cent2.root /gpfs/mnt/gpfs01/star/pwg/jlidrych/data/BES/39/
+		mv AuAu39GeV_KaonDST_${JOBID}_Cent3.root /gpfs/mnt/gpfs01/star/pwg/jlidrych/data/BES/39/
+		mv AuAu39GeV_KaonDST_${JOBID}_Cent4.root /gpfs/mnt/gpfs01/star/pwg/jlidrych/data/BES/39/
+		mv AuAu39GeV_KaonDST_${JOBID}_Cent5.root /gpfs/mnt/gpfs01/star/pwg/jlidrych/data/BES/39/
+		mv AuAu39GeV_KaonDST_${JOBID}_Cent6.root /gpfs/mnt/gpfs01/star/pwg/jlidrych/data/BES/39/
+		mv AuAu39GeV_KaonDST_${JOBID}_Cent7.root /gpfs/mnt/gpfs01/star/pwg/jlidrych/data/BES/39/
+		mv AuAu39GeV_KaonDST_${JOBID}_Cent8.root /gpfs/mnt/gpfs01/star/pwg/jlidrych/data/BES/39/
+		mv AuAu39GeV_KaonDST_${JOBID}*.log /star/data01/pwg/jlidrych/vypisy/picoDST/
+	</command>
+
+<!-- Au Au 200 GeV Run11 -->
+	 <input URL="catalog:star.bnl.gov?production=P10ik,daynumber[]1099-1112,path~AuAu39_production,filetype=daq_reco_mudst,filename~st_physics,sanity=1,available=1,tpx=1,tof=1,storage!=HPSS" preferStorage="local"  nFiles="all" /> 
+		<!--<stdout URL="file:/star/data01/pwg/jlidrych/vypisy/$JOBID.log"/> -->
+	<stderr URL="file:/star/data01/pwg/jlidrych/vypisy/$JOBID.err"/> 
+	<stdout discard="true" />
+
+	<SandBox installer="ZIP">
+		<Package name="makeBES39"> 
+		<File>file:./macros/makeBES39.C</File>
+		<File>file:./StRoot</File>
+		<File>file:./*.root</File>
+		</Package>
+	</SandBox>
+
+
+</job>

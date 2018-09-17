@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<job  softLimits="true" minEvents="75000" maxEvents="100000" eventsPerHour="1000" fileListSyntax="xrootd">
+
+	<command>
+		<!-- AuAu 200 GeV Run11 -->
+		starver SL14a
+		cons
+		root4star -q -b macros/makePion.C\(\"$FILELIST\",\"AuAu200GeV_KaonDST_${JOBID}\",9,250000,2,0,15\)++  &gt;&amp; AuAu200GeV_KaonDST_${JOBID}.log
+		mv AuAu200GeV_KaonDST_${JOBID}_Cent*.root /gpfs/mnt/gpfs01/star/scratch/jlidrych/kaonAuAu2011_part1/
+		mv AuAu200GeV_KaonDST_${JOBID}*.log /star/data01/pwg/jlidrych/vypisy/picoDST/
+	</command>
+
+<!-- Au Au 200 GeV Run11 -->
+	 <input URL="catalog:star.bnl.gov?production=P11id,trgsetupname=AuAu200_production_2011,filetype=daq_reco_MuDst,filename~st_physics,collision=auau200,sanity=1,available=1,tpx=1,daynumber[]2128-2128,tof=1,storage!=HPSS" preferStorage="local" nFiles="all" />
+	<stderr URL="file:/star/data01/pwg/jlidrych/vypisy/$JOBID.err"/> 
+	<stdout discard="true" />
+
+	<SandBox installer="ZIP">
+		<Package name="makePion12"> 
+		<File>file:./macros/makePion.C</File>
+		<File>file:./StRoot</File>
+		<File>file:./*.root</File>
+		</Package>
+	</SandBox>
+
+
+</job>
