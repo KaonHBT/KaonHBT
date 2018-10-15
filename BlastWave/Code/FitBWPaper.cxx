@@ -1,0 +1,273 @@
+#include "BlastWaveFitter.h"
+
+#include "TROOT.h"
+#include "TFile.h"
+#include "TGraphErrors.h"
+#include "TH2.h"
+
+#include <cmath>
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
+using namespace std;
+
+
+
+int main(int argc, char **argv){
+  // _____________________________________________________________________
+  // --- Input
+  if(argc!=3){
+    cout << "Need 2 arguments" << endl;
+    return 1;
+  }
+  int iDataType = atoi(argv[1]); // 0: central130, 1: mid-perif130, 2: perif130 
+  int iMinimize = atoi(argv[2]); // 0: none, 1: migrad, 2: migrad+minos, 3: migrad+minos+contour
+
+  // _____________________________________________________________________
+  // --- ROOT 
+  TROOT("myROOT","ttt");
+
+  // _____________________________________________________________________
+  // --- Instantiate Blast wave and various parameters
+  //
+  BlastWaveFitter* BWFitter =  BlastWaveFitter::instance();
+  double MPi = 0.1396; 
+  double MK = 0.4937;
+  double MP = 0.9383;
+  double MLa = 1.1157;
+  SpectraForFit* SpecPim =0;
+  SpectraForFit* SpecKm =0;
+  SpectraForFit* SpecP =0;
+  SpectraForFit* SpecPip =0;
+  SpectraForFit* SpecKp =0;
+  SpectraForFit* SpecPB =0;
+  SpectraForFit* SpecLa =0;
+  SpectraForFit* SpecLaB =0;
+  double T = 0.107;//0.1;    // Temperature GeV. Affects all
+  double Rho0 = 0.85;//0.9; // Flow rapidity. Affects all
+  double Rho2 = 0.058;//0.05;    // 2nd order flow modulation. Affects v2 and asHBT
+  double Rho4 = 0.;    // 4th order flow modulation. Affects mainly v4 
+  double Rx = 10.4;//12.;   // in-plane radius (fm). Affects HBT. Rx/Ry affects v2 
+  double Ry = 11.8;//13.;   // out-of-plane radius (fm). Affects HBT
+  double As = 0.;    // Smoothness of the source.0=box. Do not use by default. 
+  double Tau = 7.6;//10.;  // System life time (fm/c). Affect HBT
+  double Deltat = 0.3;//2.;// Emission duration. Affects HBT.
+  BWFitter->setParameters(T,Rho0,Rho2,Rho4,Rx,Ry,As,Tau,Deltat);
+  // fixAs() should always be used unless you know what you are doing
+  // fixRho4() should always be used unless you are fitting v4
+  // if fitting :
+  // - spectra only: fix all but Rho0 and T
+  // - v2 (+spectra) : fix all but Rho0, T, Rho2 and Rx (note the value of Ry)
+  // - HBT (+spectra): fixRho2() and useR()
+  // - asHBT (+spectra+v2): all free (except above as and Rho4)
+  // - spectra + v2 + HBT: all free (except above as and Rho4)
+  BWFitter->fixAs();
+  //BWFitter->fixT();
+  //BWFitter->fixRho2();
+  BWFitter->fixRho4();
+  //BWFitter->useR(); // merge Rx and Ry
+  //BWFitter->fixRx();
+  //BWFitter->fixRy();
+  //BWFitter->fixTau();
+  //BWFitter->fixDeltat();
+
+
+  // _____________________________________________________________________
+  // --- Load the data
+  // Any data can be added or removed at will. 
+  // See BlastWaveFitter.h for the a list of functions that can be used to add data
+  // X must be pt
+  // Error in X are not used
+  // For spectra, Y must be proportional to dN/dpt/pt = dN/dmt/mt
+  // For v2, Y must not be in %
+  int useQStat =1;
+
+  TFile fIn("data/DataForBWPaper.root");
+  char fOutName[500];
+  switch(iDataType){
+  case 0:
+    SpecPim  = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130PimCent0to5"), 
+			   MPi, 0.4, 1., useQStat);
+    SpecPip  = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130PipCent0to5"), 
+			   MPi, 0.4, 1., useQStat);
+    SpecKm   = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130KmCent0to5"), 
+			   MK, 0.3, 1.5, useQStat);
+    SpecKp   = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130KpCent0to5"), 
+			   MK, 0.3, 1.5, useQStat);
+    SpecPB = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130pbarCent0to5"), 
+			   MP, 0.3, 2., useQStat*-1);
+    SpecP    = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130pCent0to5"), 
+			   MP, 0.3, 2., useQStat*-1);
+    SpecLa    = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Star130LaCent0to5"), 
+			   MLa, 0.3, 2., useQStat*-1);
+    SpecLaB    = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Star130LaBCent0to5"), 
+			   MLa, 0.3, 2., useQStat*-1);
+    BWFitter->addHbtRadii((TGraphErrors*) fIn.Get("Star130ROPimC0to12"),
+			  (TGraphErrors*) fIn.Get("Star130RSPimC0to12"),
+			  (TGraphErrors*) fIn.Get("Star130RLPimC0to12"), 
+			  MPi, useQStat);
+    BWFitter->addHbtRadii((TGraphErrors*) fIn.Get("Star130ROPipC0to12"),
+			  (TGraphErrors*) fIn.Get("Star130RSPipC0to12"),
+			  (TGraphErrors*) fIn.Get("Star130RLPipC0to12"), 
+			  MPi, useQStat);
+    BWFitter->addV2((TGraphErrors*) fIn.Get("V2PiCent0to11"), MPi, -999., 999., useQStat);
+    BWFitter->addV2((TGraphErrors*) fIn.Get("V2PCent0to11"), MP, -999., 999., useQStat*-1);
+    strcpy(fOutName,"c_BWAuAu130Cent.root" );
+    break;
+  case 1:
+    SpecPim  = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130PimCent15to30"), 
+			   MPi, 0.4, 1., useQStat);
+    SpecPip  = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130PipCent15to30"), 
+			   MPi, 0.4, 1., useQStat);
+    SpecKm   = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130KmCent15to30"), 
+			   MK, 0.3, 1.5, useQStat);
+    SpecKp   = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130KpCent15to30"), 
+			   MK, 0.3, 1.5, useQStat);
+    SpecPB = 
+      BWFitter->addSpectra((TGraphErrors*)fIn.Get("Phenix130pbarCent15to30"), 
+			   MP, 0.3, 2., useQStat*-1);
+    SpecP = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130pCent15to30"), 
+			   MP, 0.3, 2., useQStat*-1);
+    SpecLa = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Star130LaCent20to35"), 
+			   MLa, 0.3, 2., useQStat*-1);
+    SpecLaB = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Star130LaBCent20to35"), 
+			   MLa, 0.3, 2., useQStat*-1);
+    BWFitter->addHbtRadii((TGraphErrors*) fIn.Get("Star130ROPimC12to32"),
+			  (TGraphErrors*) fIn.Get("Star130RSPimC12to32"),
+			  (TGraphErrors*) fIn.Get("Star130RLPimC12to32"), 
+			  MPi, useQStat);
+    BWFitter->addHbtRadii((TGraphErrors*) fIn.Get("Star130ROPipC12to32"),
+			  (TGraphErrors*) fIn.Get("Star130RSPipC12to32"),
+			  (TGraphErrors*) fIn.Get("Star130RLPipC12to32"), 
+			  MPi, useQStat);
+    BWFitter->addV2((TGraphErrors*) fIn.Get("V2PiCent11to45"), MPi, -999., 999., useQStat);
+    BWFitter->addV2((TGraphErrors*) fIn.Get("V2PCent11to45"), MP, -999., 999., useQStat*-1);
+    strcpy(fOutName,"c_BWAuAu130MidPerif.root" );
+    break;
+  case 2:
+    SpecPim  = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130PimCent60to92"), 
+			   MPi, 0.4, 1., useQStat);
+    SpecPip  = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130PipCent60to92"), 
+			   MPi, 0.4, 1., useQStat);
+    SpecKm   = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130KmCent60to92"), 
+			   MK, 0.3, 1.5, useQStat);
+    SpecKp   = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130KpCent60to92"), 
+			   MK, 0.3, 1.5, useQStat);
+    SpecPB =
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130pbarCent60to92"), 
+			   MP, 0.3, 2., useQStat*-1);
+    SpecP = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Phenix130pCent60to92"), 
+			   MP, 0.3, 2., useQStat*-1);
+    SpecLa = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Star130LaCent35to75"), 
+			   MLa, 0.3, 2., useQStat*-1);
+    SpecLaB = 
+      BWFitter->addSpectra((TGraphErrors*) fIn.Get("Star130LaBCent35to75"), 
+			   MLa, 0.3, 2., useQStat*-1);
+    BWFitter->addHbtRadii((TGraphErrors*) fIn.Get("Star130ROPimC32to72"),
+			  (TGraphErrors*) fIn.Get("Star130RSPimC32to72"),
+			  (TGraphErrors*) fIn.Get("Star130RLPimC32to72"), 
+			  MPi, useQStat);
+    BWFitter->addHbtRadii((TGraphErrors*) fIn.Get("Star130ROPipC32to72"),
+			  (TGraphErrors*) fIn.Get("Star130RSPipC32to72"),
+			  (TGraphErrors*) fIn.Get("Star130RLPipC32to72"), 
+			  MPi, useQStat);
+    BWFitter->addV2((TGraphErrors*) fIn.Get("V2PiCent45to85"), MPi, -999., 999., useQStat);
+    BWFitter->addV2((TGraphErrors*) fIn.Get("V2PCent45to85"), MP, -999., 999., useQStat*-1);
+    strcpy(fOutName,"c_BWAuAu130Perif.root" );
+    break;
+  }
+
+  // _____________________________________________________________________
+  // --- Fitting
+
+
+  TFile* fOut = new TFile(fOutName,"RECREATE");  
+  switch(iMinimize){
+  case 0: // nothing
+    break;
+  case 1: // minimize
+    BWFitter->minimize();
+    break;
+  case 2: // minimize and minos
+    BWFitter->minimize();
+    BWFitter->calculatePreciseErrors();
+    break;
+  case 3:
+    BWFitter->minimize();
+    BWFitter->fixDeltat();
+    BWFitter->calculatePreciseErrors();
+    BWFitter->betaTContour(1)->Write(); 
+    BWFitter->betaTContour(2)->Write();   
+    BWFitter->betaTContour(3)->Write(); 	  
+    // This one should only be used with v2 or asHBT data
+    BWFitter->S2VsRho2Contour(1)->Write();
+    BWFitter->S2VsRho2Contour(2)->Write();
+    BWFitter->S2VsRho2Contour(3)->Write();
+    // For more contour see BlastWaveFitter.h
+  }
+
+  // _____________________________________________________________________
+  // --- Output  
+  // for more output, see BlastWave.h
+
+  // use Specxxx to get the scaling (dN/dY) right
+  cout << ">>> Write spectra" << endl;
+  SpecPim->histo("BestPimPt", 100, BWFitter->blastWave())->Write();
+  SpecPip->histo("BestPipPt", 100, BWFitter->blastWave())->Write();
+  SpecKm->histo("BestKmPt", 100, BWFitter->blastWave())->Write();
+  SpecKp->histo("BestKpPt", 100, BWFitter->blastWave())->Write();
+  SpecP->histo("BestPPt", 100, BWFitter->blastWave())->Write();
+  SpecPB->histo("BestPBPt", 100, BWFitter->blastWave())->Write();
+  SpecLa->histo("BestLaPt", 100, BWFitter->blastWave())->Write();
+  SpecLaB->histo("BestLaBPt", 100, BWFitter->blastWave())->Write();
+
+  SpecPim->histo("BestWPimPt", 100, 0.05, 3.05, BWFitter->blastWave())->Write();
+  SpecPip->histo("BestWPipPt", 100, 0.05, 3.05, BWFitter->blastWave())->Write();
+  SpecKm->histo("BestWKmPt", 100, 0.05, 3.05, BWFitter->blastWave())->Write();
+  SpecKp->histo("BestWKpPt", 100, 0.05, 3.05, BWFitter->blastWave())->Write();
+  SpecP->histo("BestWPPt", 100, 0.05, 3.05, BWFitter->blastWave())->Write();
+  SpecPB->histo("BestWPBPt", 100, 0.05, 3.05, BWFitter->blastWave())->Write();
+  SpecLa->histo("BestWLaPt", 100, 0.05, 3.05, BWFitter->blastWave())->Write();
+  SpecLaB->histo("BestWLaBPt", 100, 0.05, 3.05, BWFitter->blastWave())->Write();
+
+  cout << ">>> Write v2" << endl;
+  BWFitter->blastWave()->setStat(useQStat*-1);
+  BWFitter->blastWave()->v2VsPt("P",MP)->Write();
+  BWFitter->blastWave()->setStat(useQStat*1);
+  BWFitter->blastWave()->v2VsPt("K",MK)->Write();
+  BWFitter->blastWave()->v2VsPt("Pi",MPi)->Write();
+
+  cout << ">>> Write HBT Radii" << endl;
+  BWFitter->blastWave()->rOut("Pi",MPi)->Write();
+  BWFitter->blastWave()->rSide("Pi",MPi)->Write();
+  BWFitter->blastWave()->rLong("Pi",MPi)->Write();
+
+  fOut->Close();
+
+  BWFitter->coutFitResults();
+  
+  delete BWFitter;
+
+
+}

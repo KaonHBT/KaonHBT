@@ -1,0 +1,5 @@
+# $Id $
+# package myflowmaker
+# author: 
+Library:libmyflowmaker.so:LIBS +=   -lStChain  -lStHbtMaker  -l_StMuDSTMaker  -lPhysics
+#Library:libmyflowmaker.so:LIBS +=   -lStChain  -lStEvent  -lStEventUtilities  -lStHbtMaker  -lStMuDSTMaker  -lPhysics
